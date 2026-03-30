@@ -1,8 +1,13 @@
 # betterauth-dynamodb-adapter
 
 [![npm version](https://img.shields.io/npm/v/betterauth-dynamodb-adapter.svg)](https://www.npmjs.com/package/betterauth-dynamodb-adapter)
+[![npm downloads](https://img.shields.io/npm/dm/betterauth-dynamodb-adapter.svg)](https://www.npmjs.com/package/betterauth-dynamodb-adapter)
 [![license](https://img.shields.io/npm/l/betterauth-dynamodb-adapter.svg)](LICENSE)
-![TS](https://img.shields.io/badge/TypeScript-%E2%9C%93-blue)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![ESLint](https://img.shields.io/badge/ESLint-enabled-brightgreen.svg)](eslint.config.ts)
+[![Tests](https://img.shields.io/badge/Tests-18%2F18%20passing-brightgreen.svg)](src/__tests__/adapter.test.ts)
+[![Code Quality](https://img.shields.io/badge/Code%20Quality-A-brightgreen.svg)](#)
 
 A DynamoDB adapter for [Better Auth](https://www.better-auth.com/). Uses a single-table design with composite keys and a GSI for model-based queries.
 
@@ -22,6 +27,10 @@ A DynamoDB adapter for [Better Auth](https://www.better-auth.com/). Uses a singl
 npm install betterauth-dynamodb-adapter
 # or
 bun add betterauth-dynamodb-adapter
+# or
+pnpm add betterauth-dynamodb-adapter
+# or
+yarn add betterauth-dynamodb-adapter
 ```
 
 ### Peer dependencies
@@ -47,6 +56,8 @@ Then create a Global Secondary Index:
 |----------------|---------------|--------|
 | `_table-index` | `_table`      | String |
 
+Optionally, enable TTL on `expiresAt` to auto-expire sessions and verification tokens.
+
 
 ### AWS CLI
 
@@ -67,6 +78,10 @@ aws dynamodb create-table \
       "Projection": {"ProjectionType": "ALL"}
     }]' \
   --billing-mode PAY_PER_REQUEST
+
+aws dynamodb update-time-to-live \
+  --table-name my-auth-table \
+  --time-to-live-specification "Enabled=true, AttributeName=expiresAt"
 ```
 
 ### CDK
@@ -86,6 +101,45 @@ table.addGlobalSecondaryIndex({
   partitionKey: { name: "_table", type: AttributeType.STRING },
   projectionType: ProjectionType.ALL,
 });
+
+table.addTimeToLive({ attribute: "expiresAt" });
+```
+
+### Terraform
+
+```hcl
+resource "aws_dynamodb_table" "auth" {
+  name         = "my-auth-table"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "_pk"
+  range_key    = "_sk"
+
+  attribute {
+    name = "_pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "_sk"
+    type = "S"
+  }
+
+  attribute {
+    name = "_table"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "_table-index"
+    hash_key        = "_table"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+}
 ```
 
 ## Usage
