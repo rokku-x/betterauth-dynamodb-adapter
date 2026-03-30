@@ -10,7 +10,6 @@
         "aws-sdk-client-mock": "^4.1.0",
         "clean-package": "^2.2.0",
         "eslint": "^10.1.0",
-        "jiti": "^2.6.1",
         "tsdown": "^0.21.7",
         "typescript": "^5.0.0",
         "typescript-eslint": "^8.57.2",
