@@ -16,7 +16,7 @@ const ddbMock = mockClient(DynamoDBClient);
 function getAdapter() {
     const factory = dynamoDBAdapter({ tableName: "test-table", region: "us-east-1" });
     // createAdapterFactory returns a function; call it to get the adapter methods
-    return (factory as any)({ options: {} });
+    return (factory as unknown)({ options: {} });
 }
 
 beforeEach(() => {

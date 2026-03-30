@@ -22,6 +22,10 @@ A DynamoDB adapter for [Better Auth](https://www.better-auth.com/). Uses a singl
 npm install betterauth-dynamodb-adapter
 # or
 bun add betterauth-dynamodb-adapter
+# or
+pnpm add betterauth-dynamodb-adapter
+# or
+yarn add betterauth-dynamodb-adapter
 ```
 
 ### Peer dependencies
@@ -47,6 +51,8 @@ Then create a Global Secondary Index:
 |----------------|---------------|--------|
 | `_table-index` | `_table`      | String |
 
+Optionally, enable TTL on `expiresAt` to auto-expire sessions and verification tokens.
+
 
 ### AWS CLI
 
@@ -67,6 +73,10 @@ aws dynamodb create-table \
       "Projection": {"ProjectionType": "ALL"}
     }]' \
   --billing-mode PAY_PER_REQUEST
+
+aws dynamodb update-time-to-live \
+  --table-name my-auth-table \
+  --time-to-live-specification "Enabled=true, AttributeName=expiresAt"
 ```
 
 ### CDK
@@ -86,6 +96,45 @@ table.addGlobalSecondaryIndex({
   partitionKey: { name: "_table", type: AttributeType.STRING },
   projectionType: ProjectionType.ALL,
 });
+
+table.addTimeToLive({ attribute: "expiresAt" });
+```
+
+### Terraform
+
+```hcl
+resource "aws_dynamodb_table" "auth" {
+  name         = "my-auth-table"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "_pk"
+  range_key    = "_sk"
+
+  attribute {
+    name = "_pk"
+    type = "S"
+  }
+
+  attribute {
+    name = "_sk"
+    type = "S"
+  }
+
+  attribute {
+    name = "_table"
+    type = "S"
+  }
+
+  global_secondary_index {
+    name            = "_table-index"
+    hash_key        = "_table"
+    projection_type = "ALL"
+  }
+
+  ttl {
+    attribute_name = "expiresAt"
+    enabled        = true
+  }
+}
 ```
 
 ## Usage
