@@ -58,6 +58,8 @@ Then create a Global Secondary Index:
 
 Optionally, enable TTL on `expiresAt` to auto-expire sessions and verification tokens.
 
+> **TTL compatibility**: Better Auth stores `expiresAt` as an ISO date string, but DynamoDB TTL requires a Unix epoch in seconds. This adapter automatically converts between the two formats — ISO strings are stored as epoch seconds in DynamoDB, and converted back to ISO strings when read.
+
 
 ### AWS CLI
 

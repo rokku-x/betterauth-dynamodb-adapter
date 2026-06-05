@@ -76,14 +76,42 @@ const DynamoDBAdapter = (config: DynamoDBAdapterConfig) => {
     const client = new DynamoDBClient({ region });
 
     /**
-     * Removes internal DynamoDB attributes from an item
+     * Converts `expiresAt` from an ISO date string to a Unix epoch (seconds)
+     * for DynamoDB TTL compatibility. All other fields are passed through unchanged.
+     * @param data - The item data going into DynamoDB
+     * @returns The item with `expiresAt` converted to epoch seconds (if present)
+     */
+    function toStorage(data: Record<string, unknown>): Record<string, unknown> {
+        if (!("expiresAt" in data) || data.expiresAt == null) return data;
+        const date = new Date(data.expiresAt as string | number);
+        if (isNaN(date.getTime())) return data;
+        return { ...data, expiresAt: Math.floor(date.getTime() / 1000) };
+    }
+
+    /**
+     * Converts `expiresAt` from a Unix epoch (seconds) back to an ISO date string
+     * so Better Auth receives the format it expects.
+     * @param data - The item data coming from DynamoDB
+     * @returns The item with `expiresAt` converted back to an ISO string (if present)
+     */
+    function fromStorage(data: Record<string, unknown>): Record<string, unknown> {
+        if (!("expiresAt" in data) || data.expiresAt == null) return data;
+        const val = data.expiresAt;
+        if (typeof val === "number") {
+            return { ...data, expiresAt: new Date(val * 1000).toISOString() };
+        }
+        return data;
+    }
+
+    /**
+     * Removes internal DynamoDB attributes from an item and converts TTL fields
      * @param raw - The raw item from DynamoDB
      * @returns The item without internal attributes (_pk, _sk, _table)
      */
     function strip(raw: Record<string, unknown>): Record<string, unknown> {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { _pk, _sk, _table, ...rest } = raw;
-        return rest;
+        return fromStorage(rest);
     }
 
     /**
@@ -260,9 +288,9 @@ const DynamoDBAdapter = (config: DynamoDBAdapterConfig) => {
 
                 try {
                     const id = (data as Record<string, unknown>).id || crypto.randomUUID();
+                    const stored = toStorage({ ...data, id });
                     const item = {
-                        ...data,
-                        id,
+                        ...stored,
                         _pk: `${model}#${id}`,
                         _sk: `${model}#${id}`,
                         _table: model,
@@ -437,7 +465,8 @@ const DynamoDBAdapter = (config: DynamoDBAdapterConfig) => {
 
                     const existing = items[0];
                     const id = existing.id;
-                    const entries = Object.entries(updateData as Record<string, unknown>);
+                    const storedUpdate = toStorage(updateData as Record<string, unknown>);
+                    const entries = Object.entries(storedUpdate);
                     const exprs: string[] = [];
                     const vals: Record<string, unknown> = {};
                     const names: Record<string, string> = {};
@@ -505,9 +534,10 @@ const DynamoDBAdapter = (config: DynamoDBAdapterConfig) => {
                 try {
                     const items = await query(model, where);
                     let count = 0;
+                    const storedUpdate = toStorage(updateData);
 
                     for (const item of items) {
-                        const entries = Object.entries(updateData);
+                        const entries = Object.entries(storedUpdate);
                         const exprs: string[] = [];
                         const vals: Record<string, unknown> = {};
                         const names: Record<string, string> = {};
